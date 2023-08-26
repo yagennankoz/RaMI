@@ -20,8 +20,8 @@
 
 #define BUFFER_SIZE             2048 
 #define FLASH_TARGET_OFFSET     0x1F0000
-#define WAIT_TIME_DEFAULT       125500
-#define WAIT_TIME_MAX           10000000
+#define WAIT_TIME_DEFAULT       132000
+#define WAIT_TIME_MAX           1000000
 #define WAIT_DIFF               500
 
 typedef struct {
@@ -29,6 +29,7 @@ typedef struct {
     uint32_t counter;
 } note;
 
+const static uint8_t SIGNATURE[] = "RaMI";
 static uint32_t wait_time;
 static note data_buffer[BUFFER_SIZE];
 static uint16_t in_idx;
@@ -184,6 +185,7 @@ static void save_setting()
     uint8_t write_data[FLASH_PAGE_SIZE];
 
     memcpy(write_data, &wait_time, sizeof(wait_time));
+    memcpy(&write_data[sizeof(wait_time)], SIGNATURE, 4);
 
     uint32_t ints = save_and_disable_interrupts();
     flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
@@ -200,9 +202,12 @@ static void load_setting()
     const uint8_t *saved_wait = (const uint8_t *) (XIP_BASE + FLASH_TARGET_OFFSET);
     
     uint32_t wait_time_tmp;
+    uint8_t sign[4];
     memcpy(&wait_time_tmp, saved_wait, sizeof(wait_time_tmp));
-    
-    if (wait_time_tmp <= WAIT_TIME_MAX) {
+    memcpy(sign, &saved_wait[sizeof(wait_time_tmp)], 4);
+    if (0 != memcmp(sign, SIGNATURE, 4)) {
+        wait_time = WAIT_TIME_DEFAULT;
+    } else if (wait_time_tmp <= WAIT_TIME_MAX) {
         wait_time = wait_time_tmp;
     } else {
         wait_time = WAIT_TIME_DEFAULT;
